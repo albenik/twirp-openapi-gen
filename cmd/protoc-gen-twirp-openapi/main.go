@@ -10,7 +10,7 @@ import (
 
 	"google.golang.org/protobuf/compiler/protogen"
 
-	"github.com/albenik-go/twirp-openapi-gen/internal/openapi20"
+	"github.com/albenik/twirp-openapi-gen/internal/openapi20"
 )
 
 func main() {

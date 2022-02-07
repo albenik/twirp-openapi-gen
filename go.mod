@@ -1,4 +1,4 @@
-module github.com/albenik-go/twirp-openapi-gen
+module github.com/albenik/twirp-openapi-gen
 
 go 1.17
 
