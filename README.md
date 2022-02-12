@@ -9,7 +9,7 @@ A Twirp RPC OpenAPI generator implemented as `protoc` plugin
 Installing the generator for protoc/buf:
 
 ```
-go install github.com/albenik-go/cmd/protoc-gen-twirp-openapi@latest
+go install github.com/albenik/twirp-openapi-gen/cmd/protoc-gen-twirp-openapi@latest
 ```
 
 ## Run whith the protoc
