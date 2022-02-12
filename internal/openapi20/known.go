@@ -22,6 +22,8 @@ const (
 	FormatDate     = "date"
 	FormatDateTime = "date-time"
 	FormatPassword = "password"
+
+	protoAny = "google.protobuf.Any"
 )
 
 // Datatypes from https://swagger.io/specification/v2/
@@ -53,7 +55,7 @@ var (
 		protoreflect.BytesKind:  ByteType,
 	}
 
-	protoWellknownTypes = map[protoreflect.FullName]DataTypeDesc{
+	protoKnownTypes = map[protoreflect.FullName]DataTypeDesc{
 		"google.protobuf.StringValue": StringType,
 		"google.protobuf.BytesValue":  ByteType,
 		"google.protobuf.BoolValue":   BooleanType,

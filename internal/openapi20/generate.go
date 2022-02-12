@@ -18,9 +18,9 @@ func NewGenerator() *Generator {
 	return &Generator{}
 }
 
-func (g *Generator) GenerateSchema(host, preifx string, service *protogen.Service) (*Swagger, error) {
+func (g *Generator) GenerateSchema(host, preifx string, svc *protogen.Service) (*Swagger, error) {
 	ver := "undefined"
-	match := versionRx.FindStringSubmatch(string(service.Desc.FullName()))
+	match := versionRx.FindStringSubmatch(string(svc.Desc.FullName()))
 	if match != nil {
 		ver = match[1]
 	}
@@ -28,15 +28,15 @@ func (g *Generator) GenerateSchema(host, preifx string, service *protogen.Servic
 	swagger := &Swagger{
 		Swagger: Version20{},
 		Info: Info{
-			Title:          string(service.Desc.Name()),
+			Title:          string(svc.Desc.Name()),
 			Version:        ver,
-			Description:    string(service.Comments.Leading),
+			Description:    string(svc.Comments.Leading),
 			TermsOfService: "",
 			Contact:        nil,
 			License:        nil,
 		},
 		Host:        host,
-		BasePath:    "/" + strings.TrimPrefix(path.Join(preifx, string(service.Desc.FullName())), "/"),
+		BasePath:    "/" + strings.TrimPrefix(path.Join(preifx, string(svc.Desc.FullName())), "/"),
 		Schemes:     []string{"https"},
 		Consumes:    []string{"application/json"},
 		Produces:    []string{"application/json"},
@@ -44,7 +44,7 @@ func (g *Generator) GenerateSchema(host, preifx string, service *protogen.Servic
 		Definitions: make(Definitions),
 	}
 
-	for _, method := range service.Methods {
+	for _, method := range svc.Methods {
 		summary, description := splitComment(string(method.Comments.Leading))
 
 		swagger.Paths["/"+string(method.Desc.Name())] = &Path{
@@ -57,13 +57,13 @@ func (g *Generator) GenerateSchema(host, preifx string, service *protogen.Servic
 					In:          "body",
 					Required:    true,
 					Description: "",
-					Schema:      ref(method.Input.Desc.Name()),
+					Schema:      ref(method.Input.Desc.FullName()),
 				}},
 				Responses: Responses{
 					200: &Response{
 						Description: "",
 						Headers:     nil,
-						Schema:      ref(method.Output.Desc.Name()),
+						Schema:      ref(method.Output.Desc.FullName()),
 					},
 				},
 			},
@@ -81,9 +81,11 @@ func (g *Generator) GenerateSchema(host, preifx string, service *protogen.Servic
 	return swagger, nil
 }
 
-func (g *Generator) collectMessageDefinitions(defs Definitions, message *protogen.Message) error {
-	title := string(message.Desc.Name())
-	summary, description := splitComment(string(message.Comments.Leading))
+func (g *Generator) collectMessageDefinitions(defs Definitions, msg *protogen.Message) error {
+	name := string(msg.Desc.FullName())
+	title := name
+	summary, comments := splitComment(string(msg.Comments.Leading))
+
 	if summary != "" {
 		title += " — " + strings.TrimRight(strings.TrimSpace(summary), ".,;!?")
 	}
@@ -91,20 +93,24 @@ func (g *Generator) collectMessageDefinitions(defs Definitions, message *protoge
 	def := &SchemaDef{
 		Type:        StringOrArray{"object"},
 		Title:       title,
-		Description: description,
+		Description: comments,
 		Properties:  make(Properties),
 	}
 
-	for _, field := range message.Fields {
+	for _, field := range msg.Fields {
 		s, err := g.fieldSchema(defs, field)
 		if err != nil {
 			return err
 		}
 
-		def.Properties[string(field.Desc.Name())] = s
+		if jname := field.Desc.JSONName(); name == protoAny && jname == "typeUrl" {
+			def.Properties["@type"] = s
+		} else {
+			def.Properties[jname] = s
+		}
 	}
 
-	defs[string(message.Desc.Name())] = &Schema{Def: def}
+	defs[name] = &Schema{Def: def}
 	return nil
 }
 
@@ -122,7 +128,7 @@ func (g *Generator) fieldSchema(defs Definitions, field *protogen.Field) (*Schem
 		return schema, nil
 
 	case protoreflect.MessageKind:
-		if t, ok := protoWellknownTypes[field.Message.Desc.FullName()]; ok {
+		if t, ok := protoKnownTypes[field.Message.Desc.FullName()]; ok {
 			return t.Schema(), nil
 		}
 
@@ -134,8 +140,7 @@ func (g *Generator) fieldSchema(defs Definitions, field *protogen.Field) (*Schem
 			return nil, err
 		}
 
-		fieldRef := ref(field.Message.Desc.Name())
-
+		fieldRef := ref(field.Message.Desc.FullName())
 		if field.Desc.IsList() {
 			return &Schema{Def: &SchemaDef{
 				Type:  StringOrArray{TypeArray},
@@ -158,6 +163,7 @@ func (g *Generator) fieldSchema(defs Definitions, field *protogen.Field) (*Schem
 
 			return fieldSchema, nil
 		}
+
 		return nil, fmt.Errorf("field %s: unknown kind %s", field.Desc.FullName(), field.Desc.Kind())
 	}
 }
@@ -188,7 +194,7 @@ func (g *Generator) mapFieldSchema(defs Definitions, field *protogen.Field) (*Sc
 	return &Schema{Def: &SchemaDef{Type: StringOrArray{TypeObject}, AdditionalProperties: vs}}, nil
 }
 
-func ref(name protoreflect.Name) *Schema {
+func ref(name protoreflect.FullName) *Schema {
 	return &Schema{Ref: fmt.Sprintf("#/definitions/%s", name)}
 }
 
