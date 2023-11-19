@@ -1,8 +1,8 @@
 module github.com/albenik/twirp-openapi-gen
 
-go 1.17
+go 1.20
 
-require google.golang.org/protobuf v1.27.1
+require google.golang.org/protobuf v1.31.0
 
 require (
 	github.com/google/go-cmp v0.5.6 // indirect

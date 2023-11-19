@@ -23,10 +23,11 @@ func main() {
 	outputSuffix := fs.String("output_suffix", ".swagger.json", "")
 
 	protogen.Options{ParamFunc: fs.Set}.
-		Run(func(plugin *protogen.Plugin) error {
-			gen := openapi20.NewGenerator()
+		Run(func(gen *protogen.Plugin) error {
+			gen.SupportedFeatures = 1 // proto3 optional fields support
+			openapiGen := openapi20.NewGenerator()
 
-			for _, file := range plugin.Files {
+			for _, file := range gen.Files {
 				if !file.Generate {
 					continue
 				}
@@ -34,14 +35,14 @@ func main() {
 				log.Println("processing:", file.Desc.Path())
 
 				for _, service := range file.Services {
-					schema, err := gen.GenerateSchema(*hostname, *pathPrefix, service)
+					schema, err := openapiGen.GenerateSchema(*hostname, *pathPrefix, service)
 					if err != nil {
 						return fmt.Errorf("%s: schema: %w", file.Desc.Path(), err)
 					}
 
 					fname := filepath.Join(filepath.Dir(file.GeneratedFilenamePrefix),
 						string(service.Desc.Name())+*outputSuffix)
-					j := json.NewEncoder(plugin.NewGeneratedFile(fname, file.GoImportPath))
+					j := json.NewEncoder(gen.NewGeneratedFile(fname, file.GoImportPath))
 					j.SetIndent("", "  ")
 					if err = j.Encode(schema); err != nil {
 						return fmt.Errorf("%s: encode: %w", file.Desc.Path(), err)
